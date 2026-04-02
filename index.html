@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon Striker Upgrade</title>
+<style>
+body{margin:0;overflow:hidden;background:black}
+canvas{display:block}
+#ui{position:absolute;top:10px;left:10px;color:cyan}
+</style>
+</head>
+<body>
+
+<div id="ui">
+SCORE: <span id="score">0</span> | LEVEL: <span id="level">1</span> | (P = PAUSE)
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+let score=0, level=1;
+let gameActive=true, paused=false;
+
+let playerX=canvas.width/2;
+let playerY=canvas.height-100;
+let targetX=playerX, targetY=playerY;
+let sensitivity=0.15;
+let powerLevel=1;
+
+const scoreEl=document.getElementById("score");
+const levelEl=document.getElementById("level");
+
+// ASSET
+const playerImg=new Image();
+playerImg.src="pesawat.png";
+
+const shootSound=new Audio("shoot.mp3");
+const hitSound=new Audio("hit.mp3");
+const powerSound=new Audio("power.mp3");
+
+// INPUT
+function move(e){
+let x=e.touches?e.touches[0].clientX:e.clientX;
+let y=e.touches?e.touches[0].clientY:e.clientY;
+targetX=x; targetY=y;
+}
+addEventListener("mousemove",move);
+addEventListener("touchmove",e=>{e.preventDefault();move(e)}, {passive:false});
+
+// PAUSE
+addEventListener("keydown",e=>{
+if(e.key==="p") paused=!paused;
+});
+
+// DATA
+let bullets=[], enemies=[], powerUps=[];
+
+// SPAWN ENEMY
+function spawnEnemy(){
+enemies.push({
+x:Math.random()*(canvas.width-40),
+y:-50,
+w:40,h:30,
+speed:2+level*0.5,
+type:Math.random()>0.7?"zigzag":"normal",
+color:["red","blue","green","yellow"][Math.floor(Math.random()*4)]
+});
+}
+
+// SPAWN POWER
+setInterval(()=>{
+powerUps.push({x:Math.random()*canvas.width,y:-20});
+},5000);
+
+// TEMBAK
+setInterval(()=>{
+if(!gameActive||paused)return;
+
+let count=powerLevel===2?2:1;
+
+for(let i=0;i<count;i++){
+bullets.push({
+x:playerX+(i*10-5),
+y:playerY,
+vx:(Math.random()*2-1),
+vy:-10,
+size:5
+});
+}
+shootSound.currentTime=0;
+shootSound.play();
+
+},200);
+
+// LOOP
+function update(){
+
+// PLAYER MOVE
+playerX += (targetX-playerX)*sensitivity;
+playerY += (targetY-playerY)*sensitivity;
+
+// BATAS
+playerX=Math.max(30,Math.min(canvas.width-30,playerX));
+playerY=Math.max(30,Math.min(canvas.height-30,playerY));
+
+// BULLET
+for(let i=bullets.length-1;i>=0;i--){
+let b=bullets[i];
+b.x+=b.vx; b.y+=b.vy;
+if(b.y<0) bullets.splice(i,1);
+}
+
+// ENEMY
+for(let i=enemies.length-1;i>=0;i--){
+let e=enemies[i];
+e.y+=e.speed;
+
+if(e.type==="zigzag"){
+e.x+=Math.sin(e.y/20)*3;
+}
+
+// COLLISION
+for(let j=bullets.length-1;j>=0;j--){
+let b=bullets[j];
+if(b.x>e.x&&b.x<e.x+e.w&&b.y>e.y&&b.y<e.y+e.h){
+enemies.splice(i,1);
+bullets.splice(j,1);
+score+=10;
+hitSound.currentTime=0;
+hitSound.play();
+break;
+}
+}
+
+// PLAYER HIT
+let d=Math.hypot(playerX-(e.x+20),playerY-(e.y+15));
+if(d<30){
+alert("GAME OVER: "+score);
+location.reload();
+}
+}
+
+// POWER UP
+for(let i=powerUps.length-1;i>=0;i--){
+let p=powerUps[i];
+p.y+=3;
+
+let d=Math.hypot(playerX-p.x,playerY-p.y);
+if(d<30){
+powerLevel=2;
+powerSound.play();
+powerUps.splice(i,1);
+setTimeout(()=>powerLevel=1,5000);
+}
+}
+
+// LEVEL UP
+if(score>0 && score%100===0){
+level++;
+}
+
+// UI
+scoreEl.innerText=score;
+levelEl.innerText=level;
+}
+
+// DRAW
+function draw(){
+if(!gameActive)return;
+if(paused){
+ctx.fillStyle="white";
+ctx.fillText("PAUSED",canvas.width/2,canvas.height/2);
+requestAnimationFrame(draw);
+return;
+}
+
+ctx.fillStyle="black";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+// PLAYER
+ctx.drawImage(—Pngtree—military airplane icon cartoon style_5080962,playerX-30,playerY-30,60,60);
+
+// BULLET
+bullets.forEach(b=>{
+ctx.beginPath();
+ctx.arc(b.x,b.y,b.size,0,Math.PI*2);
+ctx.fillStyle="cyan";
+ctx.fill();
+});
+
+// ENEMY (bendera simpel)
+enemies.forEach(e=>{
+ctx.fillStyle=e.color;
+ctx.fillRect(e.x,e.y,e.w,e.h);
+ctx.fillStyle="white";
+ctx.fillRect(e.x,e.y+10,e.w,5);
+});
+
+// POWER
+powerUps.forEach(p=>{
+ctx.fillStyle="lime";
+ctx.beginPath();
+ctx.arc(p.x,p.y,10,0,Math.PI*2);
+ctx.fill();
+});
+
+update();
+requestAnimationFrame(draw);
+}
+
+// SPAWN LOOP
+setInterval(()=>{
+spawnEnemy();
+},500);
+
+draw();
+</script>
+
+</body>
+</html>
